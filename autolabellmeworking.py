@@ -16,8 +16,8 @@ from datetime import datetime
 import io
 
 st.set_page_config(
-    page_title="AI-Labeler | YOLO Annotation Assistant",
-    page_icon="🤖",
+    page_title="DOG Vision System | Advanced AI Annotation",
+    page_icon="🐕",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -25,77 +25,118 @@ st.set_page_config(
 def apply_custom_styles():
     st.markdown("""
         <style>
-        /* Main background and container styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Gradient background for the main area */
         .main {
-            background-color: #0e1117;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
         }
         
-        /* Custom card styling for metrics */
+        /* Glassmorphism containers */
+        div[data-testid="stVerticalBlock"] > div:has(div.metric-card) {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        /* Custom metric cards */
         .metric-card {
-            background-color: #1e2130;
-            border: 1px solid #3e445e;
-            padding: 15px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 20px;
             border-radius: 12px;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            border-color: #38bdf8;
         }
         
         .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2e7bcf;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #38bdf8;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
         }
         
         .metric-label {
-            font-size: 14px;
-            color: #8a8d97;
+            font-size: 0.85rem;
+            color: #94a3b8;
             text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 5px;
         }
 
-        /* Button styling refinements */
+        /* Sidebar Styling */
+        section[data-testid="stSidebar"] {
+            background-color: #0f172a;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Button Enhancements */
         .stButton>button {
-            border-radius: 8px;
-            font-weight: 500;
-            transition: all 0.2s ease;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .stButton>button:hover {
-            border-color: #2e7bcf;
-            color: #2e7bcf;
-            box-shadow: 0 0 10px rgba(46, 123, 207, 0.4);
-        }
-
-        /* Sidebar enhancement */
-        section[data-testid="stSidebar"] {
-            background-color: #161b22;
-        }
-        
-        /* Tab styling */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
-            background-color: #1e2130;
-            border-radius: 8px 8px 0px 0px;
-            padding: 10px 20px;
-        }
-
-        /* Gallery Image Hover Effect */
-        .gallery-item img {
-            transition: transform 0.3s ease;
-        }
-        .gallery-item img:hover {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
             transform: scale(1.02);
+        }
+
+        /* Tabs customization */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 24px;
+            background-color: transparent;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            background-color: transparent;
+            border-radius: 4px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #38bdf8;
+        }
+
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            color: #38bdf8;
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        /* Image hover zoom */
+        .gallery-img {
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .gallery-img:hover {
+            filter: brightness(1.1);
         }
         </style>
     """, unsafe_allow_html=True)
 
 def init_session_state():
     """
-    Initializes all necessary session state variables to ensure 
-    the app remains stable through reruns and complex workflows.
+    Ensures all critical variables are initialized and persistent 
+    across Streamlit's reactive execution cycles.
     """
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = []
@@ -104,45 +145,36 @@ def init_session_state():
     if 'edit_buffer' not in st.session_state:
         st.session_state.edit_buffer = None
     if 'class_names' not in st.session_state:
+        # Default COCO classes or user-defined
         st.session_state.class_names = {}
-    if 'model_cache' not in st.session_state:
-        st.session_state.model_cache = {}
     if 'conf_threshold' not in st.session_state:
         st.session_state.conf_threshold = 0.25
     if 'iou_threshold' not in st.session_state:
         st.session_state.iou_threshold = 0.45
-    if 'batch_processing' not in st.session_state:
-        st.session_state.batch_processing = False
+    if 'active_models' not in st.session_state:
+        st.session_state.active_models = []
 
 @st.cache_resource
 def load_yolo_model(model_path):
     """
-    Loads and caches YOLO models safely.
-    Handles weights downloading automatically if standard names are used.
+    Safely loads YOLOv8/v9/v10 models.
     """
     try:
         model = YOLO(model_path)
         return model
     except Exception as e:
-        st.error(f"Failed to load model '{model_path}': {str(e)}")
+        st.sidebar.error(f"Failed to initialize engine: {str(e)}")
         return None
-
-def get_unique_colors(n):
-    """Generates distinct RGB colors for bounding boxes."""
-    colors = []
-    for i in range(n):
-        h = int(360 * i / n)
-        colors.append(f"hsl({h}, 70%, 50%)")
-    return colors
 
 def process_frame_with_ai(frame_bgr, models, conf, iou):
     """
-    Inference logic: Aggregates results from multiple models and
-    returns a unified list of detections in YOLO format.
+    Multi-model inference engine.
+    Runs detection through all active models and merges findings.
     """
     aggregated_labels = []
     
     for model_name, model in models.items():
+        # Verbose=False to keep logs clean
         results = model.predict(frame_bgr, conf=conf, iou=iou, verbose=False)
         result = results[0]
         
@@ -153,29 +185,27 @@ def process_frame_with_ai(frame_bgr, models, conf, iou):
             for i in range(len(boxes)):
                 class_id = int(classes[i])
                 x_c, y_c, w, h = boxes[i]
-                # Format: <class_id> <x_center> <y_center> <width> <height>
+                # Standard YOLO format: <class_id> <x_center> <y_center> <width> <height>
                 label_str = f"{class_id} {x_c:.6f} {y_c:.6f} {w:.6f} {h:.6f}"
                 aggregated_labels.append(label_str)
                 
-    # Return unique labels only
+    # Return unique labels (merging identical boxes from different models)
     return list(set(aggregated_labels))
 
 def render_labels_on_image(pil_img, labels_list, class_names):
     """
-    Draws custom styled bounding boxes and labels on a PIL image.
-    Used for both static review and live editing feedback.
+    Sophisticated drawing function.
+    Maps numeric IDs to text names and applies a consistent color palette.
     """
     img_rgb = np.array(pil_img.convert("RGB"))
     h_img, w_img, _ = img_rgb.shape
     draw_img = img_rgb.copy()
     
-    # Palette definition (20 distinct colors)
+    # Designer Color Palette
     palette = [
-        (255, 56, 56), (255, 157, 151), (255, 112, 166), (255, 155, 71), 
-        (255, 118, 229), (255, 144, 30), (255, 106, 0), (255, 81, 151),
-        (0, 190, 255), (0, 215, 185), (0, 209, 143), (0, 188, 121),
-        (102, 219, 0), (148, 255, 0), (189, 255, 0), (241, 255, 0),
-        (255, 255, 0), (255, 0, 255), (0, 255, 255), (128, 0, 0)
+        (255, 56, 56), (0, 215, 185), (0, 188, 121), (255, 155, 71),
+        (255, 118, 229), (0, 190, 255), (102, 219, 0), (255, 106, 0),
+        (148, 255, 0), (255, 0, 255), (0, 255, 255), (189, 255, 0)
     ]
 
     for label in labels_list:
@@ -184,26 +214,33 @@ def render_labels_on_image(pil_img, labels_list, class_names):
             cls_id = int(data[0])
             xc, yc, w, h = map(float, data[1:5])
             
-            # Convert normalized to pixel coords
+            # Map coordinates
             x1 = int((xc - w/2) * w_img)
             y1 = int((yc - h/2) * h_img)
             x2 = int((xc + w/2) * w_img)
             y2 = int((yc + h/2) * h_img)
             
             color = palette[cls_id % len(palette)]
-            name = class_names.get(cls_id, f"Class {cls_id}")
+            # Retrieve human readable name
+            name = class_names.get(cls_id, f"ID: {cls_id}")
             
-            # Draw primary box
+            # 1. Draw outer glow / shadow
+            cv2.rectangle(draw_img, (x1-1, y1-1), (x2+1, y2+1), (0, 0, 0), 1)
+            # 2. Main Box
             cv2.rectangle(draw_img, (x1, y1), (x2, y2), color, 3)
             
-            # Draw label tag
+            # 3. Dynamic Tag sizing
             text = f"{name}"
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.6
-            thickness = 2
+            font = cv2.FONT_HERSHEY_DUPLEX
+            font_scale = 0.55
+            thickness = 1
             (tw, th), baseline = cv2.getTextSize(text, font, font_scale, thickness)
             
-            cv2.rectangle(draw_img, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
+            # Label Background
+            cv2.rectangle(draw_img, (x1, y1 - th - 12), (x1 + tw + 10, y1), color, -1)
+            # Text shadow
+            cv2.putText(draw_img, text, (x1 + 6, y1 - 6), font, font_scale, (0, 0, 0), thickness + 1)
+            # Main Text
             cv2.putText(draw_img, text, (x1 + 5, y1 - 7), font, font_scale, (255, 255, 255), thickness)
             
         except Exception:
@@ -213,310 +250,339 @@ def render_labels_on_image(pil_img, labels_list, class_names):
 
 def build_sidebar():
     with st.sidebar:
-        st.image("https://placehold.co/400x120/161b22/2e7bcf?text=AI-LABELER+PRO&font=playfair-display", use_container_width=True)
-        st.markdown("### 🛠️ Global Settings")
+        st.markdown("<h1 style='text-align: center; color: #38bdf8;'>🐕 DOG VISION</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 0.8rem;'>High-Precision Intelligence Suite</p>", unsafe_allow_html=True)
+        st.divider()
         
-        with st.expander("Model Configuration", expanded=True):
-            MODEL_OPTIONS = ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8x.pt"]
-            selected_models = st.multiselect(
-                "Inference Engine(s)", 
-                MODEL_OPTIONS, 
+        st.markdown("### 🧬 Intelligence Configuration")
+        
+        with st.expander("Active Inference Engines", expanded=True):
+            MODEL_CATALOGUE = ["yolov8n.pt", "yolov8s.pt", "yolov8m.pt", "yolov8x.pt"]
+            selected_paths = st.multiselect(
+                "Select Model(s)", 
+                MODEL_CATALOGUE, 
                 default=["yolov8n.pt"],
-                help="Select one or more YOLO models to detect objects. Predictions will be merged."
+                help="Running multiple models increases recall but reduces performance."
             )
             
-            st.session_state.conf_threshold = st.slider("Confidence", 0.05, 1.0, 0.25, 0.05)
-            st.session_state.iou_threshold = st.slider("IOU Threshold", 0.1, 1.0, 0.45, 0.05)
+            st.session_state.conf_threshold = st.slider("Min Confidence", 0.05, 1.0, 0.25, 0.05)
+            st.session_state.iou_threshold = st.slider("Overlap (IOU)", 0.1, 1.0, 0.45, 0.05)
 
-        # Load models and aggregate class names
-        active_models = {}
-        all_names = {}
-        for path in selected_models:
-            m = load_yolo_model(path)
+        # Build active model dict and extract global class list
+        active_instances = {}
+        merged_names = {}
+        for p in selected_paths:
+            m = load_yolo_model(p)
             if m:
-                active_models[path] = m
+                active_instances[p] = m
                 if m.names:
-                    all_names.update(m.names)
+                    merged_names.update(m.names)
         
-        st.session_state.class_names = all_names
+        st.session_state.class_names = merged_names
 
-        # System Statistics Card
-        st.markdown("### 📊 Dataset Overview")
-        total_imgs = len(st.session_state.processed_data)
-        total_boxes = sum([len(d['labels']) for d in st.session_state.processed_data])
+        st.markdown("### 📊 Live Ecosystem Metrics")
+        total_items = len(st.session_state.processed_data)
+        total_anno = sum([len(d['labels']) for d in st.session_state.processed_data])
         
         st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-label">Total Images</div>
-                <div class="metric-value">{total_imgs}</div>
+                <div class="metric-label">Processed Images</div>
+                <div class="metric-value">{total_items}</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-label">Total Annotations</div>
-                <div class="metric-value">{total_boxes}</div>
+            <div style="margin-top:15px;" class="metric-card">
+                <div class="metric-label">Total Detections</div>
+                <div class="metric-value">{total_anno}</div>
             </div>
         """, unsafe_allow_html=True)
         
-        if st.button("🗑️ Reset Workspace", type="secondary", use_container_width=True):
+        st.divider()
+        if st.button("🔥 Purge System Cache", type="secondary", use_container_width=True):
             st.session_state.processed_data = []
             st.rerun()
 
-        return active_models
+        return active_instances
 
-def tab_image_upload(active_models):
-    st.markdown("### 🖼️ Batch Image Auto-Labeling")
-    st.write("Upload high-resolution images to automatically generate YOLO annotations.")
+def tab_batch_upload(active_engines):
+    st.markdown("## 📥 High-Volume Ingestion")
+    st.caption("Upload folders of raw imagery to trigger automated multi-model labeling.")
     
-    files = st.file_uploader("Select JPG/PNG images", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+    files = st.file_uploader(
+        "Ingest Image Assets", 
+        type=["jpg", "jpeg", "png", "webp"], 
+        accept_multiple_files=True,
+        help="Supports individual images or batch selection."
+    )
     
     if files:
-        if st.button("🚀 Process Batch", use_container_width=True):
+        if st.button("⚡ EXECUTE BATCH AUTO-LABEL", use_container_width=True):
             progress_bar = st.progress(0)
-            status_text = st.empty()
+            status = st.empty()
             
             for i, f in enumerate(files):
-                status_text.info(f"Analyzing {f.name}...")
+                status.info(f"Scanning Asset: {f.name}...")
                 
-                # Convert file to image
-                img_pil = Image.open(f).convert("RGB")
-                img_bgr = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+                # Image transformation
+                pil_raw = Image.open(f).convert("RGB")
+                cv2_frame = cv2.cvtColor(np.array(pil_raw), cv2.COLOR_RGB2BGR)
                 
-                # Inference
-                labels = process_frame_with_ai(
-                    img_bgr, 
-                    active_models, 
+                # Intelligent Inference
+                predictions = process_frame_with_ai(
+                    cv2_frame, 
+                    active_engines, 
                     st.session_state.conf_threshold,
                     st.session_state.iou_threshold
                 )
                 
-                # Store
+                # Repository storage
                 st.session_state.processed_data.append({
-                    'original_image': img_pil,
-                    'labels': labels,
-                    'filename': f"{datetime.now().strftime('%H%M%S')}_{f.name}"
+                    'original_image': pil_raw,
+                    'labels': predictions,
+                    'filename': f"{datetime.now().strftime('%m%d%H%M')}_{f.name}"
                 })
                 
                 progress_bar.progress((i + 1) / len(files))
             
-            status_text.success(f"Successfully processed {len(files)} images!")
+            status.success(f"System Check: {len(files)} assets ingested successfully.")
             st.balloons()
 
-def tab_live_capture(active_models):
-    st.markdown("### 🎥 Interactive AI-Webcam")
-    st.info("The live feed uses the first selected model for performance. Use 'Capture' to save high-res annotations.")
+def tab_live_intelligence(active_engines):
+    st.markdown("## 🎥 Live Visual Intelligence")
+    st.info("Direct sensor feed integration. Use triggers below to capture high-fidelity samples.")
     
-    col_cam, col_ctrl = st.columns([3, 1])
+    col_v, col_c = st.columns([3, 1])
     
-    with col_ctrl:
-        run_cam = st.toggle("Enable Camera Feed", value=False)
+    with col_c:
+        is_active = st.toggle("Activate Sensors", value=False)
         st.divider()
-        capture_btn = st.button("📸 CAPTURE FRAME", use_container_width=True)
-        st.caption("Captures currently visible frame with full multi-model detection.")
+        snap_trigger = st.button("📸 SNAPSHOT FRAME", use_container_width=True, type="primary")
+        st.markdown("""
+        **Operational Note:**
+        Preview uses optimized 1-pass inference. Captured frames undergo full multi-engine fusion.
+        """)
 
-    if run_cam:
-        # Standard Streamlit CV2 loop
-        cap = cv2.VideoCapture(0)
-        frame_holder = col_cam.empty()
+    if is_active:
+        v_cap = cv2.VideoCapture(0)
+        v_placeholder = col_v.empty()
         
-        # Performance check
-        if not active_models:
-            st.warning("No models loaded for detection.")
-            run_cam = False
+        if not active_engines:
+            st.error("No intelligence engines active. Enable via sidebar.")
+            is_active = False
 
-        while run_cam:
-            ret, frame = cap.read()
-            if not ret: break
+        while is_active:
+            success, raw_frame = v_cap.read()
+            if not success: break
             
-            # High-speed preview (uses 1st model)
-            p_model = list(active_models.values())[0]
-            results = p_model.predict(frame, conf=st.session_state.conf_threshold, verbose=False)
-            preview_frame = results[0].plot()
+            # Preview Logic (Fastest model)
+            fast_engine = list(active_engines.values())[0]
+            preview_res = fast_engine.predict(raw_frame, conf=st.session_state.conf_threshold, verbose=False)
+            preview_render = preview_res[0].plot()
             
-            # Display
-            frame_holder.image(cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB))
+            v_placeholder.image(cv2.cvtColor(preview_render, cv2.COLOR_BGR2RGB), use_container_width=True)
             
-            # Handle capture trigger
-            if capture_btn:
-                img_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                labels = process_frame_with_ai(frame, active_models, st.session_state.conf_threshold, 0.45)
+            if snap_trigger:
+                rgb_pil = Image.fromarray(cv2.cvtColor(raw_frame, cv2.COLOR_RGB2BGR))
+                full_inference = process_frame_with_ai(raw_frame, active_engines, st.session_state.conf_threshold, 0.45)
                 
                 st.session_state.processed_data.append({
-                    'original_image': img_pil,
-                    'labels': labels,
-                    'filename': f"capture_{int(time.time())}.jpg"
+                    'original_image': rgb_pil,
+                    'labels': full_inference,
+                    'filename': f"sensor_snap_{int(time.time())}.jpg"
                 })
-                st.toast("Frame Saved to Collection!")
-                # Reset capture button logic (Streamlit specific)
+                st.toast("Intelligence Sample Captured!")
                 break
                 
             time.sleep(0.01)
         
-        cap.release()
+        v_cap.release()
 
-def tab_review_and_edit():
+def tab_data_studio():
     if not st.session_state.processed_data:
-        st.info("Your collection is currently empty. Start by uploading images or using the camera.")
+        st.markdown("<div style='text-align:center; padding:50px;'><h3>Sensor Buffer Empty</h3><p>Ingest data via Batch or Live modules to begin processing.</p></div>", unsafe_allow_html=True)
         return
 
-    # Logical Branch: Detail Editor or Gallery
+    # Logic Switching: Detailed Annotation vs Gallery
     if st.session_state.edit_index is not None:
         idx = st.session_state.edit_index
-        buffer = st.session_state.edit_buffer
+        work_item = st.session_state.edit_buffer
         
-        st.markdown(f"### ✏️ Editing: `{buffer['filename']}`")
+        st.markdown(f"## 🛠️ Annotation Studio: `{work_item['filename']}`")
         
-        e_col1, e_col2 = st.columns([2, 1])
+        s_col1, s_col2 = st.columns([2, 1])
         
-        with e_col2:
-            st.markdown("#### Bounding Boxes")
+        with s_col2:
+            st.markdown("#### Layer Control")
             
-            if st.button("➕ Add Manual Annotation", use_container_width=True):
-                buffer['labels'].append("0 0.5 0.5 0.2 0.2")
+            if st.button("➕ Inject Manual Label", use_container_width=True):
+                work_item['labels'].append("0 0.5 0.5 0.2 0.2")
                 st.rerun()
 
-            to_delete = []
-            for i, label_str in enumerate(buffer['labels']):
-                with st.expander(f"📦 Box {i+1}", expanded=True):
-                    parts = label_str.split()
-                    cid = int(parts[0])
-                    xc, yc, w, h = map(float, parts[1:5])
+            purge_list = []
+            for i, label_str in enumerate(work_item['labels']):
+                with st.expander(f"📦 OBJECT {i+1}", expanded=True):
+                    l_data = label_str.split()
+                    c_id = int(l_data[0])
+                    xc, yc, w, h = map(float, l_data[1:5])
                     
-                    # Manual Tuning Sliders
-                    n_cid = st.number_input("Class ID", 0, 100, cid, key=f"ecid_{i}")
-                    n_xc = st.slider("X-Center", 0.0, 1.0, xc, 0.001, key=f"exc_{i}")
-                    n_yc = st.slider("Y-Center", 0.0, 1.0, yc, 0.001, key=f"eyc_{i}")
-                    n_w = st.slider("Width", 0.0, 1.0, w, 0.001, key=f"ew_{i}")
-                    n_h = st.slider("Height", 0.0, 1.0, h, 0.001, key=f"eh_{i}")
+                    # Mapping logic for presentation
+                    current_name = st.session_state.class_names.get(c_id, f"Class {c_id}")
+                    st.info(f"Identity: **{current_name}**")
                     
-                    # Update buffer immediately
-                    buffer['labels'][i] = f"{n_cid} {n_xc:.6f} {n_yc:.6f} {n_w:.6f} {n_h:.6f}"
+                    new_id = st.number_input("ID Mapping", 0, 999, c_id, key=f"id_{i}")
+                    new_xc = st.slider("X-Axis Center", 0.0, 1.0, xc, 0.001, key=f"xc_{i}")
+                    new_yc = st.slider("Y-Axis Center", 0.0, 1.0, yc, 0.001, key=f"yc_{i}")
+                    new_w = st.slider("Object Width", 0.0, 1.0, w, 0.001, key=f"w_{i}")
+                    new_h = st.slider("Object Height", 0.0, 1.0, h, 0.001, key=f"h_{i}")
                     
-                    if st.button(f"🗑️ Delete Box {i+1}", key=f"edel_{i}"):
-                        to_delete.append(i)
+                    # Live string update
+                    work_item['labels'][i] = f"{new_id} {new_xc:.6f} {new_yc:.6f} {new_w:.6f} {new_h:.6f}"
+                    
+                    if st.button(f"🗑️ Delete Object {i+1}", key=f"del_box_{i}"):
+                        purge_list.append(i)
             
-            for i in sorted(to_delete, reverse=True):
-                buffer['labels'].pop(i)
+            for i in sorted(purge_list, reverse=True):
+                work_item['labels'].pop(i)
                 st.rerun()
 
             st.divider()
-            s1, s2 = st.columns(2)
-            if s1.button("💾 SAVE CHANGES", type="primary", use_container_width=True):
-                st.session_state.processed_data[idx] = buffer
+            b1, b2 = st.columns(2)
+            if b1.button("💾 COMMIT EDITS", type="primary", use_container_width=True):
+                st.session_state.processed_data[idx] = work_item
                 st.session_state.edit_index = None
-                st.toast("Success: Labels updated.")
+                st.toast("Database updated.")
                 st.rerun()
-            if s2.button("❌ DISCARD", use_container_width=True):
+            if b2.button("🚫 DISCARD", use_container_width=True):
                 st.session_state.edit_index = None
                 st.rerun()
 
-        with e_col1:
-            # Visual Feedback
-            preview = render_labels_on_image(
-                buffer['original_image'], 
-                buffer['labels'], 
+        with s_col1:
+            # Immersive Visual Feedback
+            render_preview = render_labels_on_image(
+                work_item['original_image'], 
+                work_item['labels'], 
                 st.session_state.class_names
             )
-            st.image(preview, use_container_width=True)
+            st.image(render_preview, use_container_width=True, caption="Visual Sandbox Output")
 
     else:
-        # Gallery View
-        st.markdown("### 🔍 Annotation Gallery")
-        cols = st.columns(4)
-        for i, item in enumerate(st.session_state.processed_data):
-            with cols[i % 4]:
-                thumb = render_labels_on_image(item['original_image'], item['labels'], st.session_state.class_names)
-                st.image(thumb, caption=f"ID: {i} | {len(item['labels'])} labels", use_container_width=True)
+        # High-End Gallery View
+        st.markdown("## 🔍 Knowledge Repository")
+        
+        search_q = st.text_input("Filter assets by filename...", "")
+        
+        filtered_data = [d for d in st.session_state.processed_data if search_q.lower() in d['filename'].lower()]
+        
+        g_cols = st.columns(4)
+        for i, item in enumerate(filtered_data):
+            # Find original index in session_state
+            orig_idx = next(idx for idx, d in enumerate(st.session_state.processed_data) if d['filename'] == item['filename'])
+            
+            with g_cols[i % 4]:
+                t_preview = render_labels_on_image(item['original_image'], item['labels'], st.session_state.class_names)
+                st.image(t_preview, use_container_width=True)
+                st.markdown(f"**{item['filename'][:20]}...**")
+                st.caption(f"{len(item['labels'])} objects identified")
                 
-                c1, c2 = st.columns(2)
-                if c1.button("Edit", key=f"g_ed_{i}", use_container_width=True):
-                    st.session_state.edit_index = i
+                c_btn1, c_btn2 = st.columns(2)
+                if c_btn1.button("Edit", key=f"gs_ed_{i}", use_container_width=True):
+                    st.session_state.edit_index = orig_idx
                     st.session_state.edit_buffer = {
                         'original_image': item['original_image'],
                         'labels': item['labels'].copy(),
                         'filename': item['filename']
                     }
                     st.rerun()
-                if c2.button("Del", key=f"g_de_{i}", use_container_width=True):
-                    st.session_state.processed_data.pop(i)
+                if c_btn2.button("Del", key=f"gs_de_{i}", use_container_width=True):
+                    st.session_state.processed_data.pop(orig_idx)
                     st.rerun()
 
-def tab_export_and_download():
+def tab_export_wizard():
     if not st.session_state.processed_data:
-        st.info("Capture or upload data to enable export features.")
+        st.warning("Empty Dataset: Cannot generate deployment package.")
         return
 
-    st.markdown("### 📊 Dataset Analytics")
+    st.markdown("## 🚀 Neural Deployment Wizard")
     
-    # Calculate Class Distribution
-    dist = []
+    # 1. Real-time Distribution Chart
+    st.subheader("Asset Distribution Analysis")
+    all_class_ids = []
     for item in st.session_state.processed_data:
         for l in item['labels']:
-            dist.append(int(l.split()[0]))
+            all_class_ids.append(int(l.split()[0]))
     
-    if dist:
-        df_dist = pd.Series(dist).value_counts().reset_index()
-        df_dist.columns = ['ID', 'Count']
-        df_dist['Name'] = df_dist['ID'].map(lambda x: st.session_state.class_names.get(x, f"ID {x}"))
-        st.bar_chart(df_dist, x='Name', y='Count')
+    if all_class_ids:
+        series = pd.Series(all_class_ids).value_counts().reset_index()
+        series.columns = ['ID', 'Instance Count']
+        series['Class Name'] = series['ID'].map(lambda x: st.session_state.class_names.get(x, f"Unknown_{x}"))
+        st.bar_chart(series, x='Class Name', y='Instance Count', color="#38bdf8")
     
     st.divider()
-    st.markdown("### 📦 YOLO Export Wizard")
     
-    col_set1, col_set2 = st.columns(2)
-    with col_set1:
-        ds_name = st.text_input("Project Name", "my_yolo_project")
-        split = st.slider("Train/Val Split Ratio", 0.5, 0.95, 0.8)
+    # 2. Packaging logic
+    st.subheader("Dataset Packaging")
+    p_col1, p_col2 = st.columns(2)
     
-    with col_set2:
-        st.info("This will generate a ZIP containing images, .txt label files, and a data.yaml configuration.")
+    with p_col1:
+        p_name = st.text_input("Project Codename", "DOG_VIS_01")
+        split_val = st.select_slider("Validation Allocation (%)", options=[10, 20, 30, 40, 50], value=20)
+    
+    with p_col2:
+        st.info("Generating standard YOLOv8 folder structure with normalized bounding box txt files.")
         
-        if st.button("🏗️ PREPARE EXPORT ZIP", use_container_width=True, type="primary"):
-            with st.spinner("Building dataset structure..."):
-                with tempfile.TemporaryDirectory() as tmp:
-                    # Folder Structure
-                    root = os.path.join(tmp, ds_name)
-                    for s in ['train', 'val']:
-                        os.makedirs(os.path.join(root, s, 'images'), exist_ok=True)
-                        os.makedirs(os.path.join(root, s, 'labels'), exist_ok=True)
+        if st.button("🏗️ COMPILE ZIP PACKAGE", type="primary", use_container_width=True):
+            with st.spinner("Compiling Neural Package..."):
+                with tempfile.TemporaryDirectory() as base_tmp:
+                    # Directory Architecture
+                    sys_root = os.path.join(base_tmp, p_name)
+                    for folder in ['train', 'val']:
+                        os.makedirs(os.path.join(sys_root, folder, 'images'), exist_ok=True)
+                        os.makedirs(os.path.join(sys_root, folder, 'labels'), exist_ok=True)
                     
-                    # Split logic
-                    data = st.session_state.processed_data.copy()
-                    random.shuffle(data)
-                    split_i = int(len(data) * split)
+                    # Split implementation
+                    dataset = st.session_state.processed_data.copy()
+                    random.shuffle(dataset)
+                    v_count = int(len(dataset) * (split_val / 100))
                     
-                    train_set = data[:split_i]
-                    val_set = data[split_i:]
-                    
-                    for set_name, items in [('train', train_set), ('val', val_set)]:
-                        for item in items:
-                            fname_base = item['filename'].replace(" ", "_")
-                            # Save Image
-                            img_path = os.path.join(root, set_name, 'images', fname_base)
-                            item['original_image'].save(img_path)
-                            # Save Txt
-                            txt_name = os.path.splitext(fname_base)[0] + ".txt"
-                            txt_path = os.path.join(root, set_name, 'labels', txt_name)
-                            with open(txt_path, 'w') as f:
-                                f.write("\n".join(item['labels']))
-                    
-                    # Generate YAML
-                    names_list = [st.session_state.class_names.get(i, f"class_{i}") for i in range(max(dist)+1)] if dist else []
-                    yaml_data = {
-                        'train': './train/images',
-                        'val': './val/images',
-                        'nc': len(names_list),
-                        'names': names_list
+                    split_map = {
+                        'val': dataset[:v_count],
+                        'train': dataset[v_count:]
                     }
-                    with open(os.path.join(root, 'data.yaml'), 'w') as yf:
-                        yaml.dump(yaml_data, yf)
                     
-                    # Zip
-                    zip_file = shutil.make_archive(os.path.join(tmp, "dataset_export"), 'zip', root)
+                    for split_tag, items in split_map.items():
+                        for sample in items:
+                            safe_name = sample['filename'].replace(" ", "_")
+                            # 1. Save Image
+                            img_p = os.path.join(sys_root, split_tag, 'images', safe_name)
+                            sample['original_image'].save(img_p)
+                            # 2. Save Annotations
+                            txt_name = os.path.splitext(safe_name)[0] + ".txt"
+                            txt_p = os.path.join(sys_root, split_tag, 'labels', txt_name)
+                            with open(txt_p, 'w') as tf:
+                                tf.write("\n".join(sample['labels']))
                     
-                    with open(zip_file, "rb") as f:
+                    # 3. YAML Config Generation
+                    # Map names up to the maximum found index
+                    max_id = max(all_class_ids) if all_class_ids else 0
+                    c_names_list = [st.session_state.class_names.get(k, f"class_{k}") for k in range(max_id + 1)]
+                    
+                    config = {
+                        'path': f'./{p_name}',
+                        'train': 'train/images',
+                        'val': 'val/images',
+                        'nc': len(c_names_list),
+                        'names': c_names_list
+                    }
+                    
+                    with open(os.path.join(sys_root, 'data.yaml'), 'w') as yf:
+                        yaml.dump(config, yf, default_flow_style=False)
+                    
+                    # 4. ZIP Archiving
+                    target_zip = shutil.make_archive(os.path.join(base_tmp, "output"), 'zip', sys_root)
+                    
+                    with open(target_zip, "rb") as final_f:
                         st.download_button(
-                            label="⬇️ DOWNLOAD ZIP ARCHIVE",
-                            data=f,
-                            file_name=f"{ds_name}.zip",
+                            label="⬇️ DOWNLOAD DEPLOYMENT PACKAGE",
+                            data=final_f,
+                            file_name=f"{p_name}_YOLO_DATASET.zip",
                             mime="application/zip",
                             use_container_width=True
                         )
@@ -525,34 +591,40 @@ def main():
     apply_custom_styles()
     init_session_state()
     
-    st.title("🤖 AI-Labeler Pro")
-    st.caption("A high-performance assistant for creating YOLO datasets using multi-model fusion.")
+    # Hero Section
+    st.markdown("""
+        <div style="background: rgba(30, 41, 59, 0.4); padding: 30px; border-radius: 20px; border: 1px solid rgba(56, 189, 248, 0.2); margin-bottom: 30px;">
+            <h1 style='margin:0; color:#38bdf8; font-size: 2.5rem;'>DOG Vision System</h1>
+            <p style='color:#94a3b8; font-size: 1.1rem;'>Professional Grade Object Detection & Annotation Workflow</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Build sidebar and get models
-    active_models = build_sidebar()
+    # Global Config via Sidebar
+    active_engines = build_sidebar()
     
-    # Navigation
-    tabs = st.tabs([
-        "📥 Upload & Auto-Label", 
-        "🎥 Live Detection", 
-        "🔍 Review & Refine", 
-        "🚀 Export Dataset"
+    # Navigation System
+    t1, t2, t3, t4 = st.tabs([
+        "💎 BATCH INGESTION", 
+        "📡 LIVE SENSORS", 
+        "🎨 DATA STUDIO", 
+        "⚡ EXPORT WIZARD"
     ])
     
-    with tabs[0]:
-        tab_image_upload(active_models)
+    with t1:
+        tab_batch_upload(active_engines)
         
-    with tabs[1]:
-        tab_live_capture(active_models)
+    with t2:
+        tab_live_intelligence(active_engines)
         
-    with tabs[2]:
-        tab_review_and_edit()
+    with t3:
+        tab_data_studio()
         
-    with tabs[3]:
-        tab_export_and_download()
+    with t4:
+        tab_export_wizard()
 
+    # Footer
     st.markdown("---")
-    st.caption("Advanced Computer Vision Workflow | v3.0 stable")
+    st.caption("DOG Vision System | Institutional Release v4.2-LTS | Developed for High-Performance CV")
 
 if __name__ == "__main__":
     main()
